@@ -73,27 +73,26 @@ namespace KCPNet
             {
                 while (true)
                 {
-                    DateTime now = DateTime.Now;
+                    DateTime now = DateTime.UtcNow;
                     if (kcpUpdateCTS.Token.IsCancellationRequested)
                     {
                         KCPNetLogger.Info("KCPSession update task is cancelled");
                         break;
                     }
-                    else
-                    {
-                        kcp.Update(now);
-                        int len;
-                        while ((len = kcp.PeekSize()) > 0)
-                        {
-                            byte[] buffer = new byte[len];
-                            if (kcp.Recv(buffer) >= 0)
-                            {
-                                OnKCPReceive(buffer);
-                            }
-                        }
 
-                        await Task.Delay(10);
+                    kcp.Update(now);
+                    int len;
+                    while ((len = kcp.PeekSize()) > 0)
+                    {
+                        // KCPNetLogger.Info($"KCP update get data length = {len}");
+                        byte[] buffer = new byte[len];
+                        if (kcp.Recv(buffer) >= 0)
+                        {
+                            OnKCPReceive(buffer);
+                        }
                     }
+
+                    await Task.Delay(10);
                 }
             }
             catch (Exception e)
@@ -105,9 +104,7 @@ namespace KCPNet
         // 处理从KCP发往上层应用的消息（是经过KCP解包处理的，来自UDP层的消息）
         private void OnKCPReceive(byte[] bytesReceived)
         {
-            // 会话只负责解压消息，序列化的任务放权给上层应用
-            var buffer = Utils.DeCompress(bytesReceived);
-            onKCPReceive?.Invoke(buffer);
+            onKCPReceive?.Invoke(bytesReceived);
         }
     }
 

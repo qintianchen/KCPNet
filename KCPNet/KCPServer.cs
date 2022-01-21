@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.Sockets.Kcp;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -36,12 +37,11 @@ namespace KCPNet
         }
 
         /// 向服务器发送消息
-        public bool SendMessage(byte[] bytesToSend, IPEndPoint remoteIPEndPoint)
+        public bool SendMessage(byte[] bytesToSend, uint sid)
         {
-            if (udpClient == null || remoteIPEndPoint == null) return false;
+            if (udpClient == null || !map_sid_session.TryGetValue(sid, out var session)) return false;
 
-            var buffer = Utils.Compress(bytesToSend);
-            udpClient.SendAsync(buffer, buffer.Length, remoteIPEndPoint);
+            session.kcp.Send(bytesToSend.AsSpan());
             return true;
         }
 
@@ -62,8 +62,7 @@ namespace KCPNet
                 for (int i = 0; i < count; i++)
                 {
                     var session = sessionList[i];
-                    var buffer = Utils.Compress(bytesToSend);
-                    udpClient.SendAsync(buffer, buffer.Length, session.remoteIPEndPoint);
+                    udpClient.SendAsync(bytesToSend, bytesToSend.Length, session.remoteIPEndPoint);
                 }
             }
             
@@ -155,6 +154,7 @@ namespace KCPNet
                     {
                         onKCPReceive?.Invoke(bytes3, remoteIPEndPoint);
                     });
+                    
                     lock (map_sid_session)
                     {
                         map_sid_session.Add(sid, session);

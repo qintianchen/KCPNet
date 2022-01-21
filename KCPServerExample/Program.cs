@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using KCPNet;
 
 namespace KCPServerExample
@@ -14,6 +15,11 @@ namespace KCPServerExample
             server.onClientSessionCreated = point =>
             {
                 KCPNetLogger.Info($"收到一个客户端链接：{point}");
+            };
+
+            server.onKCPReceive = (bytes, point) =>
+            {
+                KCPNetLogger.Info($"Receive msg from {point}, len = {bytes.Length}: {Encoding.ASCII.GetString(bytes)}");
             };
 
             Console.ReadKey();

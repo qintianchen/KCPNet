@@ -66,8 +66,7 @@ namespace KCPNet
         {
             if (udpClient == null || remoteIPEndPoint == null) return false;
 
-            var buffer = Utils.Compress(bytesToSend);
-            udpClient.SendAsync(buffer, buffer.Length, remoteIPEndPoint);
+            kcpSession.kcp.Send(bytesToSend.AsSpan());
             return true;
         }
 
@@ -155,6 +154,7 @@ namespace KCPNet
         /// 使用 UDP 将一段字节序列发送往远端
         private void SendUDPMessage(byte[] bytesToSend)
         {
+            KCPNetLogger.Info($"Send bytes to udp: {bytesToSend.Length}");
             udpClient?.SendAsync(bytesToSend, bytesToSend.Length, remoteIPEndPoint);
         }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using System.Threading.Tasks;
 using KCPNet;
 
@@ -56,6 +57,14 @@ namespace KCPClientExample
         private static void OnTryConnectToServerEnd(bool isSuccess)
         {
             KCPNetLogger.Info($"尝试连接服务器：{isSuccess}");
+            if (isSuccess)
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    var res = client.SendMessage(Encoding.ASCII.GetBytes($"Message {i} from client"));
+                    KCPNetLogger.Info($"客户端发送消息: {res}");
+                }
+            }
         }
     }
 }
