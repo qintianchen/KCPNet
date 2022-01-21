@@ -20,7 +20,7 @@ namespace KCPNet
         /// 会话ID
         public uint sid;
         /// 目标地址
-        private IPEndPoint remoteIPEndPoint;
+        public IPEndPoint remoteIPEndPoint;
         /// 会话状态
         public SessionState sessionState;
         /// Kcp 算法实例

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -17,6 +18,8 @@ namespace KCPNet
         private CancellationTokenSource clientRecvCTS;
 
         private Dictionary<uint, KCPSession> map_sid_session = new Dictionary<uint, KCPSession>();
+        private List<KCPSession> sessionList = new List<KCPSession>();
+        private bool isSessionListDirty = false;
         
         /// 启动客户端，开始接收来自目标地址的消息
         public void Start(string ip, int port)
@@ -42,6 +45,47 @@ namespace KCPNet
             return true;
         }
 
+        /// 广播消息
+        public bool BroadcastMessage(byte[] bytesToSend)
+        {
+            if (udpClient == null ) return false;
+
+            lock (sessionList)
+            {
+                if (isSessionListDirty)
+                {
+                    sessionList = map_sid_session.Values.ToList();
+                    isSessionListDirty = false;
+                }
+                
+                var count = sessionList.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    var session = sessionList[i];
+                    var buffer = Utils.Compress(bytesToSend);
+                    udpClient.SendAsync(buffer, buffer.Length, session.remoteIPEndPoint);
+                }
+            }
+            
+            return true;
+        }
+
+        // 关闭与某客户端的会话
+        public bool DisconnectBySID(uint sid)
+        {
+            lock (map_sid_session)
+            {
+                if (!map_sid_session.TryGetValue(sid, out var session))
+                {
+                    return false;
+                }
+
+                map_sid_session.Remove(sid);
+                isSessionListDirty = true;
+                return true;
+            }
+        }
+        
         public void Close()
         {
             // 终止从客户端接收消息
@@ -114,6 +158,7 @@ namespace KCPNet
                     lock (map_sid_session)
                     {
                         map_sid_session.Add(sid, session);
+                        sessionList.Add(session);
                         onClientSessionCreated?.Invoke(remoteIPEndPoint);
                     }
                 }
