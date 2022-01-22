@@ -133,7 +133,7 @@ namespace KCPNet
 
                 // sid == 0，此时，客户端认为服务器在尝试为自己分配 sid，解析出 sid，并建立通信会话
                 sid = BitConverter.ToUInt32(bytes, 4);
-                kcpSession = new KCPSession(sid, remoteIPEndPoint, SendUDPMessage, onKCPReceive);
+                kcpSession = new KCPSession(sid, remoteIPEndPoint, SendUDPMessage, (bytes2, session) => { onKCPReceive?.Invoke(bytes2); });
                 KCPNetLogger.Info("[Client] 建立会话ing...");
             }
             else

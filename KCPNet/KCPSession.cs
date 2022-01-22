@@ -28,9 +28,9 @@ namespace KCPNet
         
         private KCPHandler kcpHandler;
         private CancellationTokenSource kcpUpdateCTS;
-        private Action<byte[]> onKCPReceive;
+        private Action<byte[], KCPSession> onKCPReceive;
         
-        public KCPSession(uint sid, IPEndPoint remoteIPEndPoint, Action<byte[]> onKCPOutput, Action<byte[]> onKCPReceive)
+        public KCPSession(uint sid, IPEndPoint remoteIPEndPoint, Action<byte[]> onKCPOutput, Action<byte[], KCPSession> onKCPReceive)
         {
             // 初始化会话基本信息
             this.sid = sid;
@@ -104,7 +104,7 @@ namespace KCPNet
         // 处理从KCP发往上层应用的消息（是经过KCP解包处理的，来自UDP层的消息）
         private void OnKCPReceive(byte[] bytesReceived)
         {
-            onKCPReceive?.Invoke(bytesReceived);
+            onKCPReceive?.Invoke(bytesReceived, this);
         }
     }
 

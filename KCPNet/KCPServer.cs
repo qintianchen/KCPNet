@@ -14,8 +14,8 @@ namespace KCPNet
     {
         public UdpClient udpClient;
         public IPEndPoint ipEndPoint;
-        public Action<byte[], IPEndPoint> onKCPReceive;
-        public Action<IPEndPoint> onClientSessionCreated;
+        public Action<byte[], KCPSession> onKCPReceive;
+        public Action<KCPSession> onClientSessionCreated;
         private CancellationTokenSource clientRecvCTS;
 
         private Dictionary<uint, KCPSession> map_sid_session = new Dictionary<uint, KCPSession>();
@@ -150,16 +150,16 @@ namespace KCPNet
                     session = new KCPSession(sid, remoteIPEndPoint, bytes2 =>
                     {
                         SendUDPMessage(bytes2, remoteIPEndPoint);
-                    }, bytes3 =>
+                    }, (bytes3, m_session) =>
                     {
-                        onKCPReceive?.Invoke(bytes3, remoteIPEndPoint);
+                        onKCPReceive?.Invoke(bytes3, m_session);
                     });
                     
                     lock (map_sid_session)
                     {
                         map_sid_session.Add(sid, session);
                         sessionList.Add(session);
-                        onClientSessionCreated?.Invoke(remoteIPEndPoint);
+                        onClientSessionCreated?.Invoke(session);
                     }
                 }
                 else
