@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text;
+using System.Threading.Tasks;
 using KCPNet;
 
 namespace KCPServerExample
@@ -22,7 +23,15 @@ namespace KCPServerExample
                 KCPNetLogger.Info($"Receive msg from {point}, len = {bytes.Length}: {Encoding.ASCII.GetString(bytes)}");
             };
 
+            Task.Run(Close);
+            
             Console.ReadKey();
+        }
+
+        private static async void Close()
+        {
+            await Task.Delay(5000);
+            server.Close();
         }
     }
 }

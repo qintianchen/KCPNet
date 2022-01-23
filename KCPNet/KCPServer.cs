@@ -21,7 +21,7 @@ namespace KCPNet
         private Dictionary<uint, KCPSession> map_sid_session = new Dictionary<uint, KCPSession>();
         private List<KCPSession> sessionList = new List<KCPSession>();
         private bool isSessionListDirty = false;
-        
+
         /// 启动客户端，开始接收来自目标地址的消息
         public void Start(string ip, int port)
         {
@@ -32,7 +32,7 @@ namespace KCPNet
 
             clientRecvCTS = new CancellationTokenSource();
             Task.Run(ReceiveAsyc, clientRecvCTS.Token); // 异步从服务器接收消息，用 clientRecvCTS 来管理异步的生命周期
-            
+
             KCPNetLogger.Info($"[Server] Server starts on: {ipEndPoint}");
         }
 
@@ -48,16 +48,20 @@ namespace KCPNet
         /// 广播消息
         public bool BroadcastMessage(byte[] bytesToSend)
         {
-            if (udpClient == null ) return false;
+            if (udpClient == null) return false;
 
             lock (sessionList)
             {
                 if (isSessionListDirty)
                 {
-                    sessionList = map_sid_session.Values.ToList();
-                    isSessionListDirty = false;
+                    lock (map_sid_session)
+                    {
+                        sessionList = map_sid_session.Values.ToList();
+
+                        isSessionListDirty = false;
+                    }
                 }
-                
+
                 var count = sessionList.Count;
                 for (int i = 0; i < count; i++)
                 {
@@ -65,7 +69,7 @@ namespace KCPNet
                     udpClient.SendAsync(bytesToSend, bytesToSend.Length, session.remoteIPEndPoint);
                 }
             }
-            
+
             return true;
         }
 
@@ -84,17 +88,20 @@ namespace KCPNet
                 return true;
             }
         }
-        
+
         public void Close()
         {
+            KCPNetLogger.Info("Server ready to close");
             // 终止从客户端接收消息
             clientRecvCTS.Cancel();
-            
+
             curSID = 0;
             map_sid_session.Clear();
+            sessionList.Clear();
             udpClient.Close();
             ipEndPoint = null;
             onKCPReceive = null;
+            KCPNetLogger.Info("Server close end");
         }
 
         #region private
@@ -102,28 +109,33 @@ namespace KCPNet
         /// 异步循环从客户端接收消息
         private async void ReceiveAsyc()
         {
-            UdpReceiveResult result;
-            while (true)
+            try
             {
-                try
+                while (true)
                 {
                     if (clientRecvCTS.IsCancellationRequested)
                     {
                         KCPNetLogger.Info("Client receive task is cancel");
                         break;
                     }
+                    
+                    if (udpClient == null)
+                    {
+                        KCPNetLogger.Warning("UDPClient has been disposed!");
+                        break;
+                    }
 
                     // 循环从UDP接收消息
-                    result = await udpClient.ReceiveAsync();
+                    var result = await udpClient.ReceiveAsync();
 
                     // 处理收到的消息
                     var bytesReceived = result.Buffer;
                     OnReceive(bytesReceived, result.RemoteEndPoint);
                 }
-                catch (Exception e)
-                {
-                    KCPNetLogger.Warning($"Client receive data exception: {e}");
-                }
+            }
+            catch (Exception e)
+            {
+                KCPNetLogger.Warning($"Client receive data exception: {e}");
             }
         }
 
@@ -145,18 +157,14 @@ namespace KCPNet
             {
                 if (!map_sid_session.TryGetValue(sid, out var session))
                 {
-                    KCPNetLogger.Info($"[Server] Create a new session for client: {remoteIPEndPoint}");
-                    // 客户端确认了服务器为其分配的SID，则服务器需要为其建立会话以供后续通信
-                    session = new KCPSession(sid, remoteIPEndPoint, bytes2 =>
-                    {
-                        SendUDPMessage(bytes2, remoteIPEndPoint);
-                    }, (bytes3, m_session) =>
-                    {
-                        onKCPReceive?.Invoke(bytes3, m_session);
-                    });
-                    
                     lock (map_sid_session)
+                    lock (sessionList)
                     {
+                        KCPNetLogger.Info($"[Server] Create a new session for client: {remoteIPEndPoint}");
+
+                        // 客户端确认了服务器为其分配的SID，则服务器需要为其建立会话以供后续通信
+                        session = new KCPSession(sid, remoteIPEndPoint, bytes2 => { SendUDPMessage(bytes2, remoteIPEndPoint); }, (bytes3, m_session) => { onKCPReceive?.Invoke(bytes3, m_session); });
+
                         map_sid_session.Add(sid, session);
                         sessionList.Add(session);
                         onClientSessionCreated?.Invoke(session);
@@ -178,6 +186,7 @@ namespace KCPNet
         }
 
         private uint curSID; // 当前分配的SID
+
         public uint GenerateUniqueSID()
         {
             lock (map_sid_session)
