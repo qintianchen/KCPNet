@@ -34,31 +34,26 @@ namespace KCPNet
         }
 
         /// 连接到服务器，并建立起一个 KCP 会话
-        public Task<bool> TryConnectToServer(int interval = 200, int timeout = 5000)
+        public async Task<bool> TryConnectToServer(int interval = 200, int timeout = 5000)
         {
             SendUDPMessage(new byte[4]);
             int totalTime = 0;
-
-            Task<bool> task = Task.Run(async () =>
+            
+            while (true)
             {
-                while (true)
+                await Task.Delay(interval);
+                totalTime += interval;
+                if (kcpSession != null && kcpSession.sessionState == KCPSession.SessionState.Connected)
                 {
-                    await Task.Delay(interval);
-                    totalTime += interval;
-                    if (kcpSession != null && kcpSession.sessionState == KCPSession.SessionState.Connected)
-                    {
-                        return true;
-                    }
-
-                    if (totalTime < timeout) continue;
-                    
-                    // 连接超时
-                    KCPNetLogger.Warning($"连接到服务器: {remoteIPEndPoint} 超时");
-                    return false;
+                    return true;
                 }
-            });
 
-            return task;
+                if (totalTime < timeout) continue;
+
+                // 连接超时
+                KCPNetLogger.Warning($"连接到服务器: {remoteIPEndPoint} 超时");
+                return false;
+            }
         }
 
         /// 向服务器发送消息
@@ -78,7 +73,7 @@ namespace KCPNet
             udpClient.Close();
             remoteIPEndPoint = null;
             onKCPReceive = null;
-            
+
             // 终止从服务器接收消息
             clientRecvCTS.Cancel();
         }
