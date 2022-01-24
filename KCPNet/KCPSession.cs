@@ -49,7 +49,7 @@ namespace KCPNet
             kcpHandler = new KCPHandler(onKCPOutput);
             kcp = new Kcp(sid, kcpHandler);
             kcp.NoDelay(1, 10, 2, 1);
-            kcp.WndSize(64, 64);
+            kcp.WndSize(32, 32);
             kcp.SetMtu(512);
 
             // 开一个线程异步循环驱动KCP定时更新状态
@@ -81,13 +81,13 @@ namespace KCPNet
             {
                 while (true)
                 {
-                    DateTime now = DateTime.UtcNow;
                     if (kcpUpdateCTS.Token.IsCancellationRequested)
                     {
                         KCPNetLogger.Info("KCPSession update task is cancelled");
                         break;
                     }
 
+                    DateTime now = DateTime.UtcNow;
                     kcp.Update(now);
                     int len;
                     while ((len = kcp.PeekSize()) > 0)
@@ -99,7 +99,7 @@ namespace KCPNet
                         }
                     }
 
-                    await Task.Delay(10); // 10 ms，即 100 帧的速率更新KCP
+                    await Task.Delay(2); // 10 ms，即 100 帧的速率更新KCP
                 }
             }
             catch (Exception e)

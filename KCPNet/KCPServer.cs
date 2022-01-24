@@ -42,6 +42,8 @@ namespace KCPNet
             if (udpClient == null || !map_sid_session.TryGetValue(sid, out var session)) return false;
 
             session.kcp.Send(bytesToSend.AsSpan());
+            DateTime now = DateTime.UtcNow;
+            session.kcp.Update(now);
             return true;
         }
 
